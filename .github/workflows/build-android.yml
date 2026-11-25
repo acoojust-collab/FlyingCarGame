@@ -1,0 +1,53 @@
+name: Build Unity Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # manual trigger button in GitHub Actions UI
+
+jobs:
+  build:
+    name: Build for Android
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repo
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # 2. Cache Unity Library folder (speeds up repeat builds dramatically)
+      - name: Cache Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-Android-
+
+      # 3. Build with GameCI (free Unity build action)
+      #    Set your Unity version in the matrix below
+      - name: Build Android AAB
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE:      ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL:        ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD:     ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform:     Android
+          unityVersion:       2022.3.20f1    # ← change to your Unity version
+          androidExportType:  androidAppBundle  # builds .aab for Play Store
+          androidKeystoreName: ${{ secrets.KEYSTORE_NAME }}
+          androidKeystoreBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          androidKeystorePass: ${{ secrets.KEYSTORE_PASS }}
+          androidKeyaliasName: ${{ secrets.KEY_ALIAS }}
+          androidKeyaliasPass: ${{ secrets.KEY_ALIAS_PASS }}
+          buildName:          FlyingCarGame
+
+      # 4. Upload .aab as downloadable artifact
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlyingCarGame-Android
+          path: build/Android/
+          retention-days: 14   # artifact download link lasts 14 days
